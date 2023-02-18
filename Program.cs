@@ -3,7 +3,7 @@ using MessangerServer.Controllers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+builder.Services.AddSignalR();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -19,6 +19,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors(builder => builder
+   .SetIsOriginAllowed(_ => true)
+   .AllowAnyMethod()
+   .AllowAnyHeader()
+   .AllowCredentials());
 
 
 
@@ -33,5 +38,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapHub<DataHub>("/hubs/chat");
+});
 
 app.Run();
