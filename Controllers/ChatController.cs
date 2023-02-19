@@ -2,6 +2,8 @@
 using MessangerServer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace MessangerServer.Controllers
 {
@@ -24,9 +26,13 @@ namespace MessangerServer.Controllers
         //    return Ok();
         //}
         [HttpPost]
-        public async Task<IActionResult> GetTest(ChatMessage chatMessage)
+        public async Task<IActionResult> GetTest(int currUserId)
         {
-            await hub.Clients.All.SendAsync("ReceiveMessage", chatMessage.Content);
+            //var chatsq = await context.AttachmentUserChats.Where(e => e.UserId == currUserId).Include(e => e.Chat).Include(e=>e.User).ToListAsync();
+            var currUser = await context.Users.Where(e=>e.Id==currUserId).FirstOrDefaultAsync();
+            var chats2 = await context.Chats.Include(e => e.Users).Where(e=>e.Users.Contains(currUser)).ToListAsync();
+            //var users = await context.Users.ToListAsync();
+            //await hub.Clients.All.SendAsync("ReceiveMessage", chatMessage.Content);
             return Ok();
         }
     }
