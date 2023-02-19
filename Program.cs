@@ -1,6 +1,11 @@
 using MessangerServer.Controllers;
+using MessangerServer.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<MessangerContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MessangerContext")));
 
 // Add services to the container.
 builder.Services.AddSignalR();
@@ -8,7 +13,6 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
 
 
 var app = builder.Build();
@@ -25,11 +29,9 @@ app.UseCors(builder => builder
    .AllowAnyHeader()
    .AllowCredentials());
 
-
-
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+
 
 app.MapControllers();
 
@@ -37,6 +39,9 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseEndpoints(endpoints =>
 {
