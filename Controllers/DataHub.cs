@@ -29,5 +29,10 @@ namespace MessangerServer.Controllers
             var chats = await context.Chats.Include(e => e.Users).Where(e => e.Users.Contains(currUser)).ToListAsync();
             await Clients.All.SendAsync("GetChats", chats);
         }
+        public async Task GetCurrentChat(int currchatId)
+        {
+            var currchat = await context.Chats.Include(e=>e.Users).Include(e=>e.Messages).FirstOrDefaultAsync(e=>e.Id == currchatId);
+            await Clients.All.SendAsync("CurrentChat", currchat);
+        }   
     }
 }

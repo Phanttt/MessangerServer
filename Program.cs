@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+
 builder.Services.AddDbContext<MessangerContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MessangerContext")));
 

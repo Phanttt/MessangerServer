@@ -31,17 +31,29 @@ namespace MessangerServer.Data
                 };
 
                 context.Users.AddRange(u1,u2,u3);
-                context.SaveChanges();
+
                 Chat chat = new Chat()
                 {
                     LastMessage = "Hello",
+                    LastTime = DateTime.Now,
                     NotReaded = 1
                 };
+                Message message = new Message()
+                {
+                    ChatId = chat.Id,
+                    Sender = u1,
+                    Content = "Hello",
+                    DispatchTime = DateTime.Now,
+                    IsReaded = false
+                };
+                context.Messages.Add(message);
+                
                 chat.Users.Add(u1);
                 chat.Users.Add(u2);
-
+                chat.Messages.Add(message);
                 context.Chats.Add(chat);
-                context.SaveChanges();
+                
+
                 AttachmentUserChat attachment1 = new AttachmentUserChat()
                 {
                     User = u1,
@@ -53,16 +65,7 @@ namespace MessangerServer.Data
                     Chat = chat
                 };
                 context.AttachmentUserChats.AddRange(attachment1, attachment2);
-                context.SaveChanges();
-                Message message = new Message()
-                {
-                    Chat = chat,
-                    Sender = u1,
-                    Content = "Hello",
-                    DispatchTime = DateTime.Now,
-                    IsReaded = false
-                };
-                context.Messages.Add(message);
+
                 context.SaveChanges();
             }
         }
