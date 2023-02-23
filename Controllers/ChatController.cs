@@ -28,11 +28,7 @@ namespace MessangerServer.Controllers
         [HttpPost]
         public async Task<IActionResult> GetTest(int currUserId)
         {
-            //var chatsq = await context.AttachmentUserChats.Where(e => e.UserId == currUserId).Include(e => e.Chat).Include(e=>e.User).ToListAsync();
-            var currUser = await context.Users.Where(e=>e.Id==currUserId).FirstOrDefaultAsync();
-            var chats2 = await context.Chats.Include(e => e.Users).Where(e=>e.Users.Contains(currUser)).ToListAsync();
-            //var users = await context.Users.ToListAsync();
-            //await hub.Clients.All.SendAsync("ReceiveMessage", chatMessage.Content);
+            await hub.Clients.User("qwer").SendAsync("ReceiveMessage", "qwer");
             return Ok();
         }
     }
