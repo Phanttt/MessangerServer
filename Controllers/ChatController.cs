@@ -26,9 +26,9 @@ namespace MessangerServer.Controllers
         //    return Ok();
         //}
         [HttpPost]
-        public async Task<IActionResult> GetTest(int currUserId)
+        public async Task<IActionResult> GetTest(Message message)
         {
-            await hub.Clients.User("qwer").SendAsync("ReceiveMessage", "qwer");
+            await hub.Clients.Group("Group1").SendAsync("ReceiveMessage", "privet");
             return Ok();
         }
     }
