@@ -34,8 +34,6 @@ namespace MessangerServer.Data
 
                 Chat chat = new Chat()
                 {
-                    LastMessage = "Hello",
-                    LastTime = DateTime.Now,
                     NotReaded = 1
                 };
                 Message message = new Message()

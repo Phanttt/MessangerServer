@@ -29,20 +29,40 @@ namespace MessangerServer.Controllers
         }
         public async Task SendMessage(ChatMessage message)
         {
+            var user = await context.Users.FirstOrDefaultAsync(e=>e.Login == message.Sender.Login);
+            Message newm = new Message()
+            {
+                Content = message.Content,
+                Sender = user,
+                ChatId = message.ChatId,
+                IsReaded = message.IsReaded,
+                DispatchTime = DateTime.Now
+            };
+            context.Add(newm);
 
+            var curchat = await context.Chats.FirstOrDefaultAsync(e=>e.Id == message.ChatId);
+            curchat.Messages.Add(newm);
+            await context.SaveChangesAsync();
 
-            await Clients.Group("Group" + message.ChatId).SendAsync("ReceiveMessage", message);
+            newm = await context.Messages.OrderByDescending(e=>e.DispatchTime).FirstOrDefaultAsync(e=>e.ChatId == message.ChatId);
+
+            await Clients.Group("Group" + message.ChatId).SendAsync("ReceiveMessage", newm);
         }
         public async Task GetChats(string currUserId)
         {
             var currUser = await context.Users.Where(e => e.Id == Convert.ToInt32(currUserId)).FirstOrDefaultAsync();
             var chats = await context.Chats.Include(e => e.Users).Where(e => e.Users.Contains(currUser)).ToListAsync();
+            foreach (var item in chats)
+            {
+                await context.Messages.Where(e => e.ChatId == item.Id).OrderByDescending(e => e.DispatchTime).FirstOrDefaultAsync();
+            }
             await Clients.Caller.SendAsync("GetChats", chats);
         }
-        public async Task GetCurrentChat(int currchatId)
+        public async Task getChatMessages(int currchatId)
         {
-            var currchat = await context.Chats.Include(e => e.Users).Include(e => e.Messages).FirstOrDefaultAsync(e => e.Id == currchatId);
-            await Clients.Caller.SendAsync("CurrentChat", currchat);
+            //var currchat = await context.Chats.Include(e => e.Users).Include(e => e.Messages).FirstOrDefaultAsync(e => e.Id == currchatId);
+            var messages = await context.Messages.Where(e => e.ChatId == currchatId).Include(e=>e.Sender).OrderByDescending(e=>e.DispatchTime).ToListAsync();
+            await Clients.Caller.SendAsync("CurrentChatMessages", messages);
         }
 
 

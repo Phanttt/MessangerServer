@@ -26,9 +26,16 @@ namespace MessangerServer.Controllers
         //    return Ok();
         //}
         [HttpPost]
-        public async Task<IActionResult> GetTest(Message message)
+        public async Task<IActionResult> GetTest()
         {
             await hub.Clients.Group("Group1").SendAsync("ReceiveMessage", "privet");
+            var currUser = await context.Users.Where(e => e.Id == Convert.ToInt32(2)).FirstOrDefaultAsync();
+            var chats = await context.Chats.Include(e => e.Users).Where(e => e.Users.Contains(currUser)).ToListAsync();
+            foreach (var item in chats)
+            {
+                await context.Messages.Where(e => e.ChatId == item.Id).OrderByDescending(e => e.DispatchTime).FirstOrDefaultAsync();
+            }
+            
             return Ok();
         }
     }
