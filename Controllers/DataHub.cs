@@ -21,10 +21,10 @@ namespace MessangerServer.Controllers
 
             foreach (var item in chats)
             {
-                await Groups.AddToGroupAsync(Context.ConnectionId, "Group"+item.ChatId);
+                await Groups.AddToGroupAsync(Context.ConnectionId, "Group" + item.ChatId);
             }
 
-            var user = await context.Users.FirstOrDefaultAsync(e=>e.Id == userid);
+            var user = await context.Users.FirstOrDefaultAsync(e => e.Id == userid);
             user.Status = true;
             await context.SaveChangesAsync();
 
@@ -32,7 +32,7 @@ namespace MessangerServer.Controllers
         }
         public async Task SendMessage(ChatMessage message)
         {
-            var user = await context.Users.FirstOrDefaultAsync(e=>e.Login == message.Sender.Login);
+            var user = await context.Users.FirstOrDefaultAsync(e => e.Login == message.Sender.Login);
             Message newm = new Message()
             {
                 Content = message.Content,
@@ -43,7 +43,7 @@ namespace MessangerServer.Controllers
             };
             context.Add(newm);
 
-            var curchat = await context.Chats.FirstOrDefaultAsync(e=>e.Id == message.ChatId);
+            var curchat = await context.Chats.FirstOrDefaultAsync(e => e.Id == message.ChatId);
             curchat.Messages.Add(newm);
             await context.SaveChangesAsync();
 
@@ -61,13 +61,15 @@ namespace MessangerServer.Controllers
         }
         public async Task getChatMessages(int currchatId)
         {
-            var messages = await context.Messages.Where(e => e.ChatId == currchatId).Include(e=>e.Sender).OrderByDescending(e=>e.DispatchTime).ToListAsync();
+            var messages = await context.Messages.Where(e => e.ChatId == currchatId).Include(e => e.Sender).OrderByDescending(e => e.DispatchTime).ToListAsync();
             await Clients.Caller.SendAsync("CurrentChatMessages", messages);
         }
 
-        public async Task searchResult(string str)
+        public async Task searchResult(string str, string id)
         {
-            if (!string.IsNullOrEmpty(str)){
+            if (!string.IsNullOrEmpty(str))
+            {
+
                 var foundUsers = await context.Users.Where(e => e.Login.StartsWith(str)).ToListAsync();
                 await Clients.Caller.SendAsync("SearchResult", foundUsers);
             }
@@ -76,5 +78,12 @@ namespace MessangerServer.Controllers
                 await Clients.Caller.SendAsync("SearchResult", null);
             }
         }
-    } 
+        public async Task GetAccountImage(string id) //ChangedData changedData, 
+        {
+            User user = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(id));
+
+            await Clients.Caller.SendAsync("Image", user.Avatar);
+        }
+     
+    }
 }

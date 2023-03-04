@@ -1,5 +1,6 @@
-using MessangerServer.Controllers;
+﻿using MessangerServer.Controllers;
 using MessangerServer.Data;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,14 @@ builder.Services.AddDbContext<MessangerContext>(options =>
 // Add services to the container.
 builder.Services.AddSignalR();
 builder.Services.AddControllers();
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MemoryBufferThreshold = int.MaxValue;
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = int.MaxValue;
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

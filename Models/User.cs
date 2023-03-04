@@ -7,5 +7,6 @@
         public string Login { get; set; }
         public string Password { get; set; }
         public bool Status { get; set; }
+        public byte[]? Avatar { get; set; }
     }
 }

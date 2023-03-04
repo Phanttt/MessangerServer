@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using MessangerServer.Models.FromClient;
+using Newtonsoft.Json;
 
 namespace MessangerServer.Controllers
 {
@@ -78,6 +80,34 @@ namespace MessangerServer.Controllers
                 ClaimsIdentity.DefaultRoleClaimType);
 
             return claimsIdentity;
+        }
+
+        [HttpPost]
+        [Route("AccountEdit")]
+        public async Task<string> AccountEdit([FromForm] IFormFile file, [FromForm] string otherData)
+        {
+            var changedData = JsonConvert.DeserializeObject<ChangedData>(otherData);
+            byte[] imageData = null;
+
+
+            User user = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(changedData.Id));
+            user.Name = changedData.Name;
+            user.Login = changedData.Login;
+
+            if(file.Length != 4)
+            {
+                using (var binaryReader = new BinaryReader(file.OpenReadStream()))
+                {
+                    imageData = binaryReader.ReadBytes((int)file.Length);
+                }
+                user.Avatar = imageData;
+            }
+
+            context.Update(user);
+            await context.SaveChangesAsync();
+
+            string encodedJwt = CreateToken(user);
+            return encodedJwt;
         }
     }
 }
