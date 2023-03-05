@@ -36,23 +36,21 @@ namespace MessangerServer.Controllers
             await base.OnConnectedAsync();
         }
 
-        public override async Task OnDisconnectedAsync(Exception exception)
+        public async Task Disconnect(int id)
         {
-            var userid = Convert.ToInt32(Context.GetHttpContext().Request.Query["userid"]);
-            var chats = await context.AttachmentUserChats.Where(x => x.UserId == userid).ToListAsync();
-
+            var chats = await context.AttachmentUserChats.Where(x => x.UserId == id).ToListAsync();
+                
             foreach (var item in chats)
             {
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Group" + item.ChatId);
             }
 
-            var user = await context.Users.FirstOrDefaultAsync(e => e.Id == userid);
+            var user = await context.Users.FirstOrDefaultAsync(e => e.Id == id);
             if (user != null)
             {
                 user.Status = false;
             }
-
-            await base.OnDisconnectedAsync(exception);
+            await context.SaveChangesAsync();
         }
 
         public async Task SendMessage(ChatMessage message)
