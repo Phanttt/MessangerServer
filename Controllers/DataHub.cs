@@ -3,6 +3,7 @@ using MessangerServer.Data;
 using Microsoft.EntityFrameworkCore;
 using MessangerServer.Models.FromClient;
 using MessangerServer.Models;
+using MessangerServer.Models.ToClient;
 
 namespace MessangerServer.Controllers
 {
@@ -12,7 +13,7 @@ namespace MessangerServer.Controllers
         public DataHub(MessangerContext context)
         {
             this.context = context;
-            ContextInitializer.Init(this.context);
+            //ContextInitializer.Init(this.context);
         }
         public override async Task OnConnectedAsync()
         {
@@ -25,7 +26,11 @@ namespace MessangerServer.Controllers
             }
 
             var user = await context.Users.FirstOrDefaultAsync(e => e.Id == userid);
-            user.Status = true;
+            if (user!=null)
+            {
+                user.Status = true;
+            }
+
             await context.SaveChangesAsync();
 
             await base.OnConnectedAsync();
@@ -52,12 +57,23 @@ namespace MessangerServer.Controllers
         public async Task GetChats(string currUserId)
         {
             var currUser = await context.Users.Where(e => e.Id == Convert.ToInt32(currUserId)).FirstOrDefaultAsync();
-            var chats = await context.Chats.Include(e => e.Users).Where(e => e.Users.Contains(currUser)).ToListAsync();
-            foreach (var item in chats)
-            {
-                await context.Messages.Where(e => e.ChatId == item.Id).OrderByDescending(e => e.DispatchTime).FirstOrDefaultAsync();
-            }
-            await Clients.Caller.SendAsync("GetChats", chats);
+
+            var chatsToSend = await context.AttachmentUserChats
+                .Include(a => a.Chat)
+                .ThenInclude(e=>e.Messages)
+                .Include(a => a.User)
+                .GroupBy(a => a.Chat)
+                .Select(g => new ChatToSend
+                {
+                    Id = g.Key.Id,
+                    Type = g.Key.Type,
+                    Users = g.Select(a => a.User).ToList(),
+                    Messages = g.Select(a => a.Chat.Messages).FirstOrDefault()
+                })
+                .ToListAsync();
+
+
+            await Clients.Caller.SendAsync("GetChats", chatsToSend);
         }
         public async Task getChatMessages(int currchatId)
         {
@@ -67,6 +83,17 @@ namespace MessangerServer.Controllers
 
         public async Task searchResult(string str, string id)
         {
+            //int userid = Convert.ToInt32(id);
+            //var currUser = await context.Users.Where(e => e.Id == Convert.ToInt32(userid)).FirstOrDefaultAsync();
+
+            //var otherUserChat = context.Chats
+            //.Where(x => x.Users.Contains(currUser))
+            //.ToList();
+
+            //await Clients.Caller.SendAsync("SearchResult", null);
+
+
+
             if (!string.IsNullOrEmpty(str))
             {
 
@@ -78,12 +105,63 @@ namespace MessangerServer.Controllers
                 await Clients.Caller.SendAsync("SearchResult", null);
             }
         }
-        public async Task GetAccountImage(string id) //ChangedData changedData, 
+        public async Task GetAccountImage(string id) 
         {
             User user = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(id));
 
             await Clients.Caller.SendAsync("Image", user.Avatar);
         }
-     
+
+
+        public async Task CreateChat(int other, int id)
+        {
+            User user = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(id));
+            User otheruser = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(other));
+
+            Chat chat = new Chat();
+            chat.Type = "Chat";
+
+            AttachmentUserChat attachment1 = new AttachmentUserChat();
+            attachment1.Chat = chat;
+            attachment1.User = user;
+
+            AttachmentUserChat attachment2 = new AttachmentUserChat();
+            attachment2.Chat = chat;
+            attachment2.User = otheruser;
+
+            await context.AddAsync(chat);
+            await context.AttachmentUserChats.AddRangeAsync(attachment1, attachment2);
+            await context.SaveChangesAsync();
+
+
+            var chatsToSend = await context.AttachmentUserChats
+                .Include(a => a.Chat)
+                .ThenInclude(e => e.Messages)
+                .Include(a => a.User)
+                .Where(e => e.ChatId == chat.Id)
+                .GroupBy(a => a.Chat)
+                .Select(g => new ChatToSend
+                {
+                    Id = g.Key.Id,
+                    Type = g.Key.Type,
+                    Users = g.Select(a => a.User).ToList(),
+                    Messages = g.Select(a=>a.Chat.Messages).FirstOrDefault()
+                })
+                .FirstOrDefaultAsync();
+
+            await Clients.Caller.SendAsync("NewChatData", chatsToSend);
+        }
+
+        public async Task DeleteChat(int id)
+        {
+            var chat = await context.Chats.FindAsync(id);
+            var hh = await context.AttachmentUserChats.Where(e=>e.ChatId==id).ToListAsync();
+
+            context.AttachmentUserChats.RemoveRange(hh);
+            context.Chats.Remove(chat);
+            await context.SaveChangesAsync();
+
+            await Clients.Caller.SendAsync("Image", 1);
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace MessangerServer.Models
+﻿namespace MessangerServer.Models.FromClient
 {
     public class LogData
     {

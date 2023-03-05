@@ -7,6 +7,8 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using MessangerServer.Models.FromClient;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Hosting;
+using MessangerServer.Models.Auth;
 
 namespace MessangerServer.Controllers
 {
@@ -15,6 +17,7 @@ namespace MessangerServer.Controllers
     public class AccountController : Controller
     {
         private MessangerContext context;
+
         public AccountController(MessangerContext context)
         {
             this.context = context;
@@ -37,12 +40,22 @@ namespace MessangerServer.Controllers
         [HttpPost("Register")]
         public async Task<ActionResult<string>> Register(User data)
         {
+            byte[] avatar;
+            var filePath = Directory.GetCurrentDirectory() + "\\wwwroot\\forest.jpg";
+
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (var binaryReader = new BinaryReader(fileStream))
+            {
+                avatar = binaryReader.ReadBytes((int)fileStream.Length);
+            }
+
             User user = new User()
             {
                 Login = data.Login,
                 Name = data.Name,
                 Password = data.Password,
-                Status = true
+                Status = true,
+                Avatar = avatar
             };
             context.Users.Add(user);
             await context.SaveChangesAsync();
