@@ -5,6 +5,7 @@ using MessangerServer.Models.FromClient;
 using MessangerServer.Models;
 using MessangerServer.Models.ToClient;
 
+
 namespace MessangerServer.Controllers
 {
     public class DataHub : Hub
@@ -32,9 +33,28 @@ namespace MessangerServer.Controllers
             }
 
             await context.SaveChangesAsync();
-
             await base.OnConnectedAsync();
         }
+
+        public override async Task OnDisconnectedAsync(Exception exception)
+        {
+            var userid = Convert.ToInt32(Context.GetHttpContext().Request.Query["userid"]);
+            var chats = await context.AttachmentUserChats.Where(x => x.UserId == userid).ToListAsync();
+
+            foreach (var item in chats)
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Group" + item.ChatId);
+            }
+
+            var user = await context.Users.FirstOrDefaultAsync(e => e.Id == userid);
+            if (user != null)
+            {
+                user.Status = false;
+            }
+
+            await base.OnDisconnectedAsync(exception);
+        }
+
         public async Task SendMessage(ChatMessage message)
         {
             var user = await context.Users.FirstOrDefaultAsync(e => e.Login == message.Sender.Login);
@@ -54,14 +74,20 @@ namespace MessangerServer.Controllers
 
             await Clients.Group("Group" + message.ChatId).SendAsync("ReceiveMessage", newm);
         }
-        public async Task GetChats(string currUserId)
+        public async Task GetChats(int currUserId)
         {
-            var currUser = await context.Users.Where(e => e.Id == Convert.ToInt32(currUserId)).FirstOrDefaultAsync();
+            var chats = await context.AttachmentUserChats
+                .Where(e => e.UserId == currUserId)
+                .Select(e=>e.ChatId)
+                .ToListAsync();
+
 
             var chatsToSend = await context.AttachmentUserChats
+                .Where(e => chats.Contains(e.ChatId))
                 .Include(a => a.Chat)
                 .ThenInclude(e=>e.Messages)
                 .Include(a => a.User)
+              
                 .GroupBy(a => a.Chat)
                 .Select(g => new ChatToSend
                 {
@@ -70,6 +96,7 @@ namespace MessangerServer.Controllers
                     Users = g.Select(a => a.User).ToList(),
                     Messages = g.Select(a => a.Chat.Messages).FirstOrDefault()
                 })
+                
                 .ToListAsync();
 
 
@@ -81,24 +108,22 @@ namespace MessangerServer.Controllers
             await Clients.Caller.SendAsync("CurrentChatMessages", messages);
         }
 
-        public async Task searchResult(string str, string id)
+        public async Task searchResult(string str, int userId)
         {
-            //int userid = Convert.ToInt32(id);
-            //var currUser = await context.Users.Where(e => e.Id == Convert.ToInt32(userid)).FirstOrDefaultAsync();
-
-            //var otherUserChat = context.Chats
-            //.Where(x => x.Users.Contains(currUser))
-            //.ToList();
-
-            //await Clients.Caller.SendAsync("SearchResult", null);
-
-
-
             if (!string.IsNullOrEmpty(str))
             {
+                var chatUserIds = context.AttachmentUserChats
+                .Where(auc => auc.UserId == userId)
+                .Select(auc => auc.ChatId)
+                .Distinct()
+                .ToList();
 
-                var foundUsers = await context.Users.Where(e => e.Login.StartsWith(str)).ToListAsync();
-                await Clients.Caller.SendAsync("SearchResult", foundUsers);
+                var usersWithoutChat = context.Users
+                    .Where(u => u.Login.StartsWith(str) && u.Id != userId && !context.AttachmentUserChats
+                        .Any(auc => chatUserIds.Contains(auc.ChatId) && auc.UserId == u.Id))
+                    .ToList();
+
+                await Clients.Caller.SendAsync("SearchResult", usersWithoutChat);
             }
             else
             {
@@ -161,7 +186,7 @@ namespace MessangerServer.Controllers
             context.Chats.Remove(chat);
             await context.SaveChangesAsync();
 
-            await Clients.Caller.SendAsync("Image", 1);
+            await Clients.Caller.SendAsync("Image", 1); 
         }
     }
 }
