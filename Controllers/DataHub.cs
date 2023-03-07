@@ -42,6 +42,7 @@ namespace MessangerServer.Controllers
                 
             foreach (var item in chats)
             {
+                await Clients.Group("Group" + item.ChatId).SendAsync("UserDisconnect", id);
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Group" + item.ChatId);
             }
 
@@ -185,6 +186,25 @@ namespace MessangerServer.Controllers
             await context.SaveChangesAsync();
 
             await Clients.Caller.SendAsync("Image", 1); 
+        }
+
+        public async Task DeleteMessage(int id)
+        {
+            var messsage = await context.Messages.FindAsync(id);         
+            context.Messages.Remove(messsage);
+
+            await context.SaveChangesAsync();
+            await Clients.Group("Group" + messsage.ChatId).SendAsync("DeleteId", id);
+        }
+
+        public async Task EditMassage(int id, string str)
+        {
+            var messsage = await context.Messages.FindAsync(id);
+            messsage.Content = str;
+            context.Messages.Remove(messsage);
+
+            await context.SaveChangesAsync();
+            await Clients.Group("Group" + messsage.ChatId).SendAsync("DeleteId", id);
         }
     }
 }
