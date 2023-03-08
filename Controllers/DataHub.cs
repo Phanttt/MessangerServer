@@ -24,6 +24,7 @@ namespace MessangerServer.Controllers
             foreach (var item in chats)
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, "Group" + item.ChatId);
+                await Clients.Group("Group" + item.ChatId).SendAsync("UserConnect", userid);
             }
 
             var user = await context.Users.FirstOrDefaultAsync(e => e.Id == userid);
@@ -56,22 +57,35 @@ namespace MessangerServer.Controllers
 
         public async Task SendMessage(ChatMessage message)
         {
-            var user = await context.Users.FirstOrDefaultAsync(e => e.Login == message.Sender.Login);
-            Message newm = new Message()
+            if (message.Id!=null)
             {
-                Content = message.Content,
-                Sender = user,
-                ChatId = message.ChatId,
-                IsReaded = message.IsReaded,
-                DispatchTime = DateTime.Now
-            };
-            context.Add(newm);
+                Message mes = await context.Messages.FirstOrDefaultAsync(e => e.Id == message.Id);
+                mes.Content = message.Content;
+                context.Update(mes);
+                await context.SaveChangesAsync();
 
-            var curchat = await context.Chats.FirstOrDefaultAsync(e => e.Id == message.ChatId);
-            curchat.Messages.Add(newm);
-            await context.SaveChangesAsync();
+                await Clients.Group("Group" + message.ChatId).SendAsync("OnEditMessage", mes);
+            }
+            else
+            {
+                var user = await context.Users.FirstOrDefaultAsync(e => e.Login == message.Sender.Login);
+                Message newm = new Message()
+                {
+                    Content = message.Content,
+                    Sender = user,
+                    ChatId = message.ChatId,
+                    IsReaded = message.IsReaded,
+                    DispatchTime = DateTime.Now
+                };
+                context.Add(newm);
 
-            await Clients.Group("Group" + message.ChatId).SendAsync("ReceiveMessage", newm);
+                var curchat = await context.Chats.FirstOrDefaultAsync(e => e.Id == message.ChatId);
+                curchat.Messages.Add(newm);
+                await context.SaveChangesAsync();
+
+                await Clients.Group("Group" + message.ChatId).SendAsync("ReceiveMessage", newm);
+            }
+            
         }
         public async Task GetChats(int currUserId)
         {
