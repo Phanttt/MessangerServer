@@ -244,5 +244,16 @@ namespace MessangerServer.Controllers
             await context.SaveChangesAsync();
             await Clients.Group("Group" + messsage.ChatId).SendAsync("OnEditMessage", id);
         }
+
+        public async Task ReadAllMessages(int chatid, int userid)
+        {
+            var messsages = await context.Messages.Where(e=>e.ChatId==chatid && e.SenderId != userid).ToListAsync();
+            foreach (var item in messsages)
+            {
+                item.IsReaded = true;
+            }
+
+            await context.SaveChangesAsync();
+        }
     }
 }
