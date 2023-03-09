@@ -101,26 +101,33 @@ namespace MessangerServer.Controllers
         {
             var changedData = JsonConvert.DeserializeObject<ChangedData>(otherData);
             byte[] imageData = null;
-
-
-            User user = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(changedData.Id));
-            user.Name = changedData.Name;
-            user.Login = changedData.Login;
-
-            if(file.Length != 4)
+            
+            User exist = await context.Users.FirstOrDefaultAsync(e => e.Login == changedData.Login && e.Id != Convert.ToInt32(changedData.Id));
+            if (exist==null)
             {
-                using (var binaryReader = new BinaryReader(file.OpenReadStream()))
+                User user = await context.Users.FirstOrDefaultAsync(e => e.Id == Convert.ToInt32(changedData.Id));
+                user.Name = changedData.Name;
+                user.Login = changedData.Login;
+                if (file.Length != 4)
                 {
-                    imageData = binaryReader.ReadBytes((int)file.Length);
+                    using (var binaryReader = new BinaryReader(file.OpenReadStream()))
+                    {
+                        imageData = binaryReader.ReadBytes((int)file.Length);
+                    }
+                    user.Avatar = imageData;
                 }
-                user.Avatar = imageData;
+
+                context.Update(user);
+
+                await context.SaveChangesAsync();
+                string encodedJwt = CreateToken(user);
+                return encodedJwt;
             }
-
-            context.Update(user);
-            await context.SaveChangesAsync();
-
-            string encodedJwt = CreateToken(user);
-            return encodedJwt;
+            else
+            {
+                return null;
+            }
+            
         }
     }
 }
