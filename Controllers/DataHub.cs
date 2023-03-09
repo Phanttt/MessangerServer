@@ -4,13 +4,16 @@ using Microsoft.EntityFrameworkCore;
 using MessangerServer.Models.FromClient;
 using MessangerServer.Models;
 using MessangerServer.Models.ToClient;
-
+using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace MessangerServer.Controllers
 {
     public class DataHub : Hub
     {
         private MessangerContext context;
+        private static ConcurrentDictionary<int, string> _dictionary = new ConcurrentDictionary<int, string>();
+
         public DataHub(MessangerContext context)
         {
             this.context = context;
@@ -20,6 +23,9 @@ namespace MessangerServer.Controllers
         {
             var userid = Convert.ToInt32(Context.GetHttpContext().Request.Query["userid"]);
             var chats = await context.AttachmentUserChats.Where(x => x.UserId == userid).ToListAsync();
+
+            _dictionary.AddOrUpdate(userid, Context.ConnectionId, (key, oldValue) => Context.ConnectionId);
+            
 
             foreach (var item in chats)
             {
@@ -40,7 +46,9 @@ namespace MessangerServer.Controllers
         public async Task Disconnect(int id)
         {
             var chats = await context.AttachmentUserChats.Where(x => x.UserId == id).ToListAsync();
-                
+
+            _dictionary.TryRemove(id, out var removedValue);
+
             foreach (var item in chats)
             {
                 await Clients.Group("Group" + item.ChatId).SendAsync("UserDisconnect", id);
@@ -172,6 +180,22 @@ namespace MessangerServer.Controllers
             await context.SaveChangesAsync();
 
 
+            string otherConnId;
+            bool isExistOther = _dictionary.TryGetValue(otheruser.Id, out otherConnId);
+
+            string currConnId;
+            bool isExistCurr = _dictionary.TryGetValue(user.Id, out currConnId);
+
+            if (isExistOther)
+            {
+                await Groups.AddToGroupAsync(otherConnId, "Group" + chat.Id);
+            }
+
+            if (isExistCurr)
+            {
+                await Groups.AddToGroupAsync(currConnId, "Group" + chat.Id);
+            }
+           
             var chatsToSend = await context.AttachmentUserChats
                 .Include(a => a.Chat)
                 .ThenInclude(e => e.Messages)
@@ -187,7 +211,7 @@ namespace MessangerServer.Controllers
                 })
                 .FirstOrDefaultAsync();
 
-            await Clients.Caller.SendAsync("NewChatData", chatsToSend);
+            await Clients.Group("Group" + chat.Id).SendAsync("NewChatData", chatsToSend);
         }
 
         public async Task DeleteChat(int id)
@@ -199,7 +223,7 @@ namespace MessangerServer.Controllers
             context.Chats.Remove(chat);
             await context.SaveChangesAsync();
 
-            await Clients.Caller.SendAsync("Image", 1); 
+            await Clients.Group("Group" + id).SendAsync("ChatDeleted", id); 
         }
 
         public async Task DeleteMessage(int id)
@@ -208,7 +232,7 @@ namespace MessangerServer.Controllers
             context.Messages.Remove(messsage);
 
             await context.SaveChangesAsync();
-            await Clients.Group("Group" + messsage.ChatId).SendAsync("DeleteId", id);
+            await Clients.Group("Group" + messsage.ChatId).SendAsync("OnDeleteMessage", id);
         }
 
         public async Task EditMassage(int id, string str)
@@ -218,7 +242,7 @@ namespace MessangerServer.Controllers
             context.Messages.Remove(messsage);
 
             await context.SaveChangesAsync();
-            await Clients.Group("Group" + messsage.ChatId).SendAsync("DeleteId", id);
+            await Clients.Group("Group" + messsage.ChatId).SendAsync("OnEditMessage", id);
         }
     }
 }
